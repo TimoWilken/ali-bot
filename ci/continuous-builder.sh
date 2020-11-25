@@ -1,4 +1,5 @@
 #!/bin/bash -x
+# -*- sh-basic-offset: 2 -*-
 # A simple script which keeps building using the latest aliBuild, alidist and
 # AliRoot / AliPhysics. Notice this will do an incremental build, not a full
 # build, so it really to catch errors earlier.
@@ -6,10 +7,11 @@
 . build-helpers.sh
 
 if [ "$1" != --skip-setup ]; then
-  if [ -r ~/.continuous-builder ]; then
-    . ~/.continuous-builder
-  fi
+  # This variable determines which jobs we pick up. On MacOS, each machine has
+  # its own queue, named after its hostname.
+  : "${CONTAINER_IMAGE:=$(hostname --short)}"
 
+  # Make sure required env variables are set, and export them.
   ensure_vars GITHUB_TOKEN GITLAB_USER GITLAB_PASS AWS_ACCESS_KEY_ID \
               AWS_SECRET_ACCESS_KEY INFLUXDB_WRITE_URL ALIBOT_ANALYTICS_ID \
               MONALISA_HOST MONALISA_PORT MESOS_ROLE CONTAINER_IMAGE \
@@ -102,10 +104,6 @@ fi
 # Get updates to ali-bot
 TIMEOUT=$(get_config_value timeout "${TIMEOUT:-600}") reset_git_repository ali-bot
 
-# Run CI builder under screen if possible and we're not already there. This is
-# for the macOS builders.
-if [ "$MESOS_ROLE" != macos ] || [ -n "$STY" ] || ! type screen > /dev/null; then
-  exec "$0" --skip-setup
-else
-  exec screen -dmS "ci_$WORKER_INDEX" "$0" --skip-setup
-fi
+# Re-exec ourselves so that if this script has been updated in the meantime, we
+# pick those changes up.
+exec "$0" --skip-setup
