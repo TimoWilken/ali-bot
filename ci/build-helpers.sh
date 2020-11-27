@@ -1,4 +1,5 @@
 #!/bin/bash -x
+# -*- sh-basic-offset: 2 -*-
 # This file contains functions used by continuous-builder.sh and build-loop.sh.
 # It is sourced on every iteration, so functions defined here can be overridden
 # while the builder is running.
@@ -134,8 +135,23 @@ function ensure_vars () {
   done
 }
 
+function timeout_forward_signal () {
+  $timeout_exec "$@" &
+  task_pid=$!
+  # Set a trap: when we are killed, pass the signal on to the child process.
+  # Bash doesn't do this automatically.
+  trap 'kill $task_pid' TERM
+  # TODO: what does wait do when we get killed? Does it just exit with an error?
+  # In which case, we probably want to exit the script manually.
+  wait $task_pid
+  local status=$?
+  # Reset the trap.
+  trap - TERM
+  return $status
+}
+
 # timeout vs. gtimeout (macOS with Homebrew)
 timeout_exec=timeout
 type $timeout_exec > /dev/null 2>&1 || timeout_exec=gtimeout
-function short_timeout () { $timeout_exec -s9 "$TIMEOUT" "$@"; }
-function long_timeout () { $timeout_exec -s9 "$LONG_TIMEOUT" "$@"; }
+function short_timeout () { timeout_forward_signal -s9 "$TIMEOUT" "$@"; }
+function long_timeout () { timeout_forward_signal -s9 "$LONG_TIMEOUT" "$@"; }
