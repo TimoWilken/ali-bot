@@ -63,7 +63,7 @@ fi
 # Get a list of PRs to build -- force-hashes overrides list-branch-pr.
 HASHES=$(grep -Eve '^[[:blank:]]*(#|$)' force-hashes || true)
 if [ -z "$HASHES" ]; then
-  HASHES=$(list-branch-pr)
+  HASHES=$(list-branch-pr -m)
 fi
 
 if [ -n "$HASHES" ]; then
